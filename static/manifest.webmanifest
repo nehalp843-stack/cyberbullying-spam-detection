@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "Safe Signal - Content Safety Detector",
+  "short_name": "Safe Signal",
+  "description": "Check messages for spam and cyberbullying.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f5fb",
+  "theme_color": "#101b33",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

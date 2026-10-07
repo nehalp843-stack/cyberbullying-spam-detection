@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#101b33">
+    <meta name="description" content="Check messages for spam and cyberbullying with the Content Safety Detector.">
+    <title>Content Safety Detector</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="icon" href="{{ url_for('static', filename='icons/app-icon.svg') }}" type="image/svg+xml">
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #17233b;
+            background: #f2f5fb;
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+        }
+        * { box-sizing: border-box; }
+        body {
+            min-width: 320px;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: 0;
+            background:
+                radial-gradient(ellipse at 12% 0%, rgba(70, 105, 218, .15), transparent 34rem),
+                #f2f5fb;
+        }
+        button, textarea { font: inherit; }
+        button:focus-visible, textarea:focus-visible { outline: 3px solid #98b6ff; outline-offset: 3px; }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            width: min(1080px, calc(100% - 2.5rem));
+            margin: 0 auto;
+            padding: 1.25rem 0;
+        }
+        .brand { display: flex; align-items: center; gap: .7rem; font-weight: 750; letter-spacing: -.02em; }
+        .brand-mark {
+            display: grid;
+            width: 2.5rem;
+            height: 2.5rem;
+            place-items: center;
+            border-radius: .85rem;
+            background: #243a72;
+            color: white;
+            font-size: 1.15rem;
+        }
+        .install-button, .analyze-button {
+            border: 0;
+            border-radius: .8rem;
+            color: white;
+            background: #3156c8;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background .15s ease, transform .15s ease;
+        }
+        .install-button { padding: .75rem 1rem; }
+        .install-button:hover, .analyze-button:hover { background: #2445a8; }
+        .install-button:active, .analyze-button:active { transform: translateY(1px); }
+        main { width: min(1080px, calc(100% - 2.5rem)); margin: 2.5rem auto 3rem; }
+        .intro { max-width: 690px; margin: 0 0 1.75rem; }
+        .eyebrow { color: #3156c8; font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+        h1 { margin: .6rem 0 .65rem; color: #101b33; font-size: clamp(2rem, 4.5vw, 3rem); letter-spacing: -.055em; line-height: 1.08; }
+        .intro p { max-width: 620px; margin: 0; color: #5b6880; font-size: 1.05rem; line-height: 1.65; }
+        .layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .85fr); gap: 1.25rem; align-items: start; }
+        .panel { border: 1px solid #e1e7f1; border-radius: 1.2rem; background: rgba(255,255,255,.94); box-shadow: 0 14px 40px rgba(27, 45, 84, .07); }
+        .composer { padding: clamp(1.15rem, 3vw, 1.8rem); }
+        .panel-heading { margin: 0 0 .35rem; color: #17233b; font-size: 1.15rem; }
+        .hint { margin: 0 0 1rem; color: #6c7890; font-size: .9rem; line-height: 1.5; }
+        textarea {
+            display: block;
+            width: 100%;
+            min-height: 170px;
+            padding: 1rem;
+            resize: vertical;
+            border: 1px solid #d8dfeb;
+            border-radius: .85rem;
+            background: #fbfcff;
+            color: #17233b;
+            font-size: 1rem;
+            line-height: 1.55;
+        }
+        textarea::placeholder { color: #8a95a9; }
+        .analyze-button { width: 100%; min-height: 3.1rem; margin-top: .9rem; padding: .85rem 1rem; }
+        .analyze-button:disabled { cursor: wait; opacity: .7; }
+        .result-box { display: none; margin-top: 1rem; padding: 1rem; border: 1px solid; border-radius: .85rem; line-height: 1.5; }
+        .result-title { display: block; margin-bottom: .2rem; font-weight: 800; }
+        .Normal { border-color: #a9d9ba; background: #effaf2; color: #175d32; }
+        .Spam { border-color: #f0d28a; background: #fff8e6; color: #795400; }
+        .Cyberbullying { border-color: #efb6bb; background: #fff0f1; color: #8a2932; }
+        .Error { border-color: #efb6bb; background: #fff0f1; color: #8a2932; }
+        .stats { padding: 1.4rem; }
+        .stats-header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+        .stats-header h2 { margin: 0; font-size: 1.05rem; }
+        .private-badge { padding: .35rem .55rem; border-radius: 999px; background: #edf2ff; color: #3156c8; font-size: .7rem; font-weight: 750; white-space: nowrap; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+        .stat { min-height: 5.2rem; padding: .8rem; border: 1px solid #edf0f5; border-radius: .8rem; background: #fbfcff; color: #66728a; font-size: .8rem; }
+        .stat strong { display: block; margin-top: .4rem; color: #17233b; font-size: 1.4rem; letter-spacing: -.03em; }
+        .app-note { margin: 1rem 0 0; color: #778299; font-size: .78rem; line-height: 1.5; }
+        .install-status { min-height: 1.25rem; margin: .55rem 0 0; color: #52617a; font-size: .82rem; text-align: right; }
+        @media (max-width: 720px) {
+            .topbar, main { width: min(100% - 1.5rem, 560px); }
+            .topbar { padding-top: max(1rem, env(safe-area-inset-top)); }
+            main { margin-top: 1.4rem; }
+            .layout { grid-template-columns: 1fr; }
+            .stats { order: 2; }
+            textarea { min-height: 145px; font-size: 16px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">S</span><span>Safe Signal</span></div>
+        <button class="install-button" id="installButton" type="button">Install app</button>
+    </header>
+    <main>
+        <section class="intro" aria-labelledby="pageTitle">
+            <span class="eyebrow">A little more peace of mind</span>
+            <h1 id="pageTitle">Check a message before you share it.</h1>
+            <p>Analyze text for spam or cyberbullying, with a clear result and confidence score.</p>
+        </section>
+        <div class="layout">
+            <section class="panel composer" aria-labelledby="analyzerTitle">
+                <h2 class="panel-heading" id="analyzerTitle">Message analyzer</h2>
+                <p class="hint">Your submitted message is used to generate a classification and is saved with this browser's private statistics.</p>
+                <form id="analyzeForm">
+                    <label class="hint" for="messageInput">Message to check</label>
+                    <textarea id="messageInput" name="message" placeholder="Paste or type a message here..." required></textarea>
+                    <button class="analyze-button" id="analyzeButton" type="submit">Analyze message</button>
+                </form>
+                <div id="result" class="result-box" role="status" aria-live="polite"></div>
+                <p class="app-note">An internet connection is needed to analyze messages. Install Safe Signal for quick access from your home screen or Start menu.</p>
+            </section>
+            <section class="panel stats" aria-labelledby="statsTitle">
+                <div class="stats-header">
+                    <h2 id="statsTitle">Your activity</h2>
+                    <span class="private-badge">Private to this browser</span>
+                </div>
+                <div class="stats-grid" aria-live="polite">
+                    <div class="stat">Messages checked<strong id="totalCount">0</strong></div>
+                    <div class="stat">Avg. confidence<strong id="averageConfidence">0%</strong></div>
+                    <div class="stat">Normal<strong id="normalCount">0</strong></div>
+                    <div class="stat">Spam<strong id="spamCount">0</strong></div>
+                    <div class="stat">Cyberbullying<strong id="cyberbullyingCount">0</strong></div>
+                    <div class="stat">High confidence<strong id="highConfidenceCount">0</strong></div>
+                </div>
+                <p class="install-status" id="installStatus" role="status" aria-live="polite"></p>
+            </section>
+        </div>
+    </main>
+    <script>
+        const installButton = document.getElementById("installButton");
+        const installStatus = document.getElementById("installStatus");
+        let pendingInstallPrompt = null;
+
+        window.addEventListener("beforeinstallprompt", (event) => {
+            event.preventDefault();
+            pendingInstallPrompt = event;
+        });
+
+        window.addEventListener("appinstalled", () => {
+            pendingInstallPrompt = null;
+            installStatus.textContent = "App installed successfully.";
+        });
+
+        installButton.addEventListener("click", async () => {
+            if (pendingInstallPrompt) {
+                pendingInstallPrompt.prompt();
+                const choice = await pendingInstallPrompt.userChoice;
+                installStatus.textContent = choice.outcome === "accepted"
+                    ? "App installation started."
+                    : "Installation was cancelled.";
+                pendingInstallPrompt = null;
+                return;
+            }
+
+            const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            installStatus.textContent = isIos
+                ? "To install, tap Share, then choose Add to Home Screen."
+                : "Open your browser menu and choose Install app or Add to Home screen.";
+        });
+
+        async function loadStats() {
+            const response = await fetch("/stats");
+            if (!response.ok) {
+                throw new Error("Could not load your statistics.");
+            }
+            const stats = await response.json();
+            document.getElementById("totalCount").textContent = stats.total;
+            document.getElementById("averageConfidence").textContent = `${stats.average_confidence}%`;
+            document.getElementById("normalCount").textContent = stats.normal;
+            document.getElementById("spamCount").textContent = stats.spam;
+            document.getElementById("cyberbullyingCount").textContent = stats.cyberbullying;
+            document.getElementById("highConfidenceCount").textContent = stats.confidence_levels.high;
+        }
+
+        document.getElementById("analyzeForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const input = document.getElementById("messageInput").value;
+            const resultDiv = document.getElementById("result");
+            const analyzeButton = document.getElementById("analyzeButton");
+            if (!input.trim()) {
+                resultDiv.className = "result-box Error";
+                resultDiv.textContent = "Please enter a message to analyze.";
+                resultDiv.style.display = "block";
+                return;
+            }
+
+            analyzeButton.disabled = true;
+            analyzeButton.textContent = "Analyzing...";
+            try {
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: input })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Could not analyze this message.");
+                }
+
+                resultDiv.className = `result-box ${data.category}`;
+                const title = document.createElement("span");
+                title.className = "result-title";
+                title.textContent = `Classification: ${data.category}`;
+                resultDiv.replaceChildren(
+                    title,
+                    document.createTextNode(`${data.confidence}% confidence (${data.confidence_level})`)
+                );
+                resultDiv.style.display = "block";
+                await loadStats();
+            } catch (error) {
+                resultDiv.className = "result-box Error";
+                resultDiv.textContent = error instanceof Error
+                    ? error.message
+                    : "Unable to connect. Check your internet connection and try again.";
+                resultDiv.style.display = "block";
+            } finally {
+                analyzeButton.disabled = false;
+                analyzeButton.textContent = "Analyze message";
+            }
+        });
+
+        loadStats().catch((error) => {
+            installStatus.textContent = error.message;
+        });
+
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/static/service-worker.js").catch((error) => {
+                    console.error("Service worker registration failed:", error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
