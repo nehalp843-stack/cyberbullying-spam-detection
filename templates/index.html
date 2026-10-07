@@ -94,6 +94,10 @@
         .Spam { border-color: #f0d28a; background: #fff8e6; color: #795400; }
         .Cyberbullying { border-color: #efb6bb; background: #fff0f1; color: #8a2932; }
         .Error { border-color: #efb6bb; background: #fff0f1; color: #8a2932; }
+        .result-confidence { margin-top: .8rem; color: #17233b; }
+        .result-confidence-label { display: flex; justify-content: space-between; gap: .75rem; margin-bottom: .4rem; font-size: .88rem; }
+        .confidence-track { height: .65rem; overflow: hidden; border-radius: 999px; background: #e8edf6; }
+        .confidence-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: #3156c8; transition: width .25s ease; }
         .stats { padding: 1.4rem; }
         .stats-header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: 1rem; }
         .stats-header h2 { margin: 0; font-size: 1.05rem; }
@@ -101,6 +105,15 @@
         .stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
         .stat { min-height: 5.2rem; padding: .8rem; border: 1px solid #edf0f5; border-radius: .8rem; background: #fbfcff; color: #66728a; font-size: .8rem; }
         .stat strong { display: block; margin-top: .4rem; color: #17233b; font-size: 1.4rem; letter-spacing: -.03em; }
+        .confidence-chart { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid #edf0f5; }
+        .confidence-chart h3 { margin: 0 0 .9rem; color: #17233b; font-size: .95rem; }
+        .confidence-row + .confidence-row { margin-top: .8rem; }
+        .confidence-row-label { display: flex; justify-content: space-between; gap: .75rem; margin-bottom: .35rem; color: #66728a; font-size: .8rem; }
+        .confidence-row-label strong { color: #17233b; font-variant-numeric: tabular-nums; }
+        .confidence-track[role="progressbar"] { height: .55rem; }
+        .confidence-fill.high { background: #24834a; }
+        .confidence-fill.medium { background: #c28a0b; }
+        .confidence-fill.low { background: #a9444d; }
         .app-note { margin: 1rem 0 0; color: #778299; font-size: .78rem; line-height: 1.5; }
         .install-status { min-height: 1.25rem; margin: .55rem 0 0; color: #52617a; font-size: .82rem; text-align: right; }
         @media (max-width: 720px) {
@@ -150,7 +163,21 @@
                     <div class="stat">Normal<strong id="normalCount">0</strong></div>
                     <div class="stat">Spam<strong id="spamCount">0</strong></div>
                     <div class="stat">Cyberbullying<strong id="cyberbullyingCount">0</strong></div>
-                    <div class="stat">High confidence<strong id="highConfidenceCount">0</strong></div>
+                </div>
+                <div class="confidence-chart" aria-labelledby="confidenceChartTitle">
+                    <h3 id="confidenceChartTitle">Confidence level breakdown</h3>
+                    <div class="confidence-row">
+                        <div class="confidence-row-label"><span>High (80%+)</span><strong id="highConfidenceCount">0 · 0%</strong></div>
+                        <div class="confidence-track" role="progressbar" aria-label="High confidence results" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="confidence-fill high" id="highConfidenceBar"></span></div>
+                    </div>
+                    <div class="confidence-row">
+                        <div class="confidence-row-label"><span>Medium (50–79%)</span><strong id="mediumConfidenceCount">0 · 0%</strong></div>
+                        <div class="confidence-track" role="progressbar" aria-label="Medium confidence results" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="confidence-fill medium" id="mediumConfidenceBar"></span></div>
+                    </div>
+                    <div class="confidence-row">
+                        <div class="confidence-row-label"><span>Low (below 50%)</span><strong id="lowConfidenceCount">0 · 0%</strong></div>
+                        <div class="confidence-track" role="progressbar" aria-label="Low confidence results" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="confidence-fill low" id="lowConfidenceBar"></span></div>
+                    </div>
                 </div>
                 <p class="install-status" id="installStatus" role="status" aria-live="polite"></p>
             </section>
@@ -199,7 +226,15 @@
             document.getElementById("normalCount").textContent = stats.normal;
             document.getElementById("spamCount").textContent = stats.spam;
             document.getElementById("cyberbullyingCount").textContent = stats.cyberbullying;
-            document.getElementById("highConfidenceCount").textContent = stats.confidence_levels.high;
+            for (const level of ["high", "medium", "low"]) {
+                const count = stats.confidence_levels[level];
+                const share = stats.total ? Math.round((count / stats.total) * 100) : 0;
+                const bar = document.getElementById(`${level}ConfidenceBar`);
+                const track = bar.parentElement;
+                document.getElementById(`${level}ConfidenceCount`).textContent = `${count} · ${share}%`;
+                bar.style.width = `${share}%`;
+                track.setAttribute("aria-valuenow", String(share));
+            }
         }
 
         document.getElementById("analyzeForm").addEventListener("submit", async (event) => {
@@ -231,9 +266,32 @@
                 const title = document.createElement("span");
                 title.className = "result-title";
                 title.textContent = `Classification: ${data.category}`;
+                const confidence = Number(data.confidence);
+                const confidenceValue = Math.max(0, Math.min(100, confidence));
+                const confidencePanel = document.createElement("div");
+                confidencePanel.className = "result-confidence";
+                const confidenceLabel = document.createElement("div");
+                confidenceLabel.className = "result-confidence-label";
+                const confidenceText = document.createElement("span");
+                confidenceText.textContent = `${confidence}% confidence`;
+                const confidenceLevel = document.createElement("strong");
+                confidenceLevel.textContent = data.confidence_level;
+                confidenceLabel.append(confidenceText, confidenceLevel);
+                const confidenceTrack = document.createElement("div");
+                confidenceTrack.className = "confidence-track";
+                confidenceTrack.setAttribute("role", "progressbar");
+                confidenceTrack.setAttribute("aria-label", "Prediction confidence");
+                confidenceTrack.setAttribute("aria-valuemin", "0");
+                confidenceTrack.setAttribute("aria-valuemax", "100");
+                confidenceTrack.setAttribute("aria-valuenow", String(confidenceValue));
+                const confidenceFill = document.createElement("span");
+                confidenceFill.className = "confidence-fill";
+                confidenceFill.style.width = `${confidenceValue}%`;
+                confidenceTrack.append(confidenceFill);
+                confidencePanel.append(confidenceLabel, confidenceTrack);
                 resultDiv.replaceChildren(
                     title,
-                    document.createTextNode(`${data.confidence}% confidence (${data.confidence_level})`)
+                    confidencePanel
                 );
                 resultDiv.style.display = "block";
                 await loadStats();
